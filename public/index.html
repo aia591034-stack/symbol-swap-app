@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Symbol 物々交換デモ</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f9; color: #333; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 500px; width: 100%; text-align: center; }
+        button { background-color: #6a00ff; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 5px; cursor: pointer; transition: background 0.3s; margin-top: 20px; width: 100%; }
+        button:hover { background-color: #5500cc; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        #result { margin-top: 20px; padding: 15px; border-radius: 5px; display: none; text-align: left; word-break: break-all; }
+        .success { background-color: #e6ffed; border: 1px solid #b3ffcc; }
+        .error { background-color: #ffe6e6; border: 1px solid #ffb3b3; }
+        .roles { text-align: left; background: #f9f9f9; padding: 15px; border-radius: 5px; font-size: 14px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>解凍鍵の同時交換</h2>
+        <p>電子書籍の鍵とイラストデータの鍵を、運営が手数料を肩代わりして同時に交換します。</p>
+        
+        <div class="roles">
+            <strong>参加者情報:</strong><br>
+            ・運営 (Alice): 手数料支払い<br>
+            ・ユーザーA (Bob): 電子書籍の鍵を提供<br>
+            ・ユーザーB (Carol): イラストの鍵を提供
+        </div>
+
+        <button id="swapBtn">交換を実行する</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        document.getElementById('swapBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('swapBtn');
+            const resultDiv = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.innerText = '通信中...';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/execute-swap', { method: 'POST' });
+                const data = await response.json();
+
+                resultDiv.style.display = 'block';
+                if (data.success) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `
+                        <strong>✅ 送信成功！</strong><br><br>
+                        トランザクションハッシュ:<br>
+                        <a href="https://testnet.symbol.fyi/transactions/${data.hash}" target="_blank">${data.hash}</a><br><br>
+                        ※エクスプローラーに反映されるまで数秒〜数十秒かかります。
+                    `;
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `<strong>❌ エラーが発生しました:</strong><br><pre>${JSON.stringify(data.error, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = `<strong>❌ 通信エラー:</strong><br>${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '交換を実行する';
+            }
+        });
+    </script>
+</body>
+</html>
