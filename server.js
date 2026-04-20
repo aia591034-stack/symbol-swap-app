@@ -1,104 +1,127 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const { PrivateKey } = require('symbol-sdk');
 const { SymbolFacade, KeyPair, MessageEncoder } = require('symbol-sdk/symbol');
+const multer = require('multer');
 
 const app = express();
 const port = 3000;
 
-// publicフォルダ内の静的ファイル(HTML等)を提供
+const upload = multer({ dest: 'uploads/' });
 app.use(express.static('public'));
+app.use('/uploads', express.static('uploads'));
 app.use(express.json());
 
-// ネットワーク設定
+const DB_FILE = path.join(__dirname, 'data.json');
+
+if (!fs.existsSync(DB_FILE)) {
+    fs.writeFileSync(DB_FILE, JSON.stringify({ products: [] }, null, 2));
+}
+if (!fs.existsSync('uploads')) {
+    fs.mkdirSync('uploads');
+}
+
 const facade = new SymbolFacade('testnet');
-const NODE_URL = 'https://sym-test-03.opening-line.jp:3001';
+// 安定して V2 を受け入れるノードを使用
+const NODE_URL = 'http://sym-test-01.opening-line.jp:3000'; 
 
-// アカウント設定（いただいた鍵情報）
-const alicePrivateKey = '53DB77447A360DAA41F61C19961ED86A60F885F918810392A218711922FB9813'; // 運営(手数料負担)
-const bobPrivateKey = '011571C24D8CB79B692B4DD0FC221C71C244DAE0E77896EC55B90606D9B1FC86'; // ユーザーA(電子書籍)
-const carolPrivateKey = '2291B720C750234BA108F571AC7FA6BF28D4EE5174FC5ECB3EE1253E64581967'; // ユーザーB(イラスト)
+const accounts = {
+    A: { name: "運営", key: 'CED3DD0A92ECC31FA33C32BF46356255145D9FA93FEE1FB9E11A10CDF39F44BC' },
+    B: { name: "ユーザーA", key: 'AB565188DBAC8E824BCB3482FE9DDD8C09DAE130207CB0C777DFCF04EB9124E2' },
+    C: { name: "ユーザーB", key: '57E3B827B2EAF8DA8F77BDDDEB3E17982EBCDADFEC85FEC9B3D3547A3C47F696' }
+};
 
-app.post('/api/execute-swap', async (req, res) => {
+let CURRENCY_ID = '72C0212E67A08BCE'; 
+
+app.post('/api/purchase', async (req, res) => {
     try {
-        const operatorKeyPair = new KeyPair(new PrivateKey(alicePrivateKey));
-        const userAKeyPair = new KeyPair(new PrivateKey(bobPrivateKey));
-        const userBKeyPair = new KeyPair(new PrivateKey(carolPrivateKey));
+        const { productId, buyerName } = req.body;
+        const data = JSON.parse(fs.readFileSync(DB_FILE));
+        const product = data.products.find(p => p.id == productId);
+        if (!product) return res.status(404).json({ error: "商品が見つかりません" });
 
-        const userAAddress = facade.network.publicKeyToAddress(userAKeyPair.publicKey);
-        const userBAddress = facade.network.publicKeyToAddress(userBKeyPair.publicKey);
+        const buyerKeyPair = new KeyPair(new PrivateKey(accounts[buyerName].key));
+        const sellerKeyPair = new KeyPair(new PrivateKey(accounts[product.seller].key));
+        const operatorKeyPair = new KeyPair(new PrivateKey(accounts.A.key));
+        const sellerAddress = facade.network.publicKeyToAddress(sellerKeyPair.publicKey);
+        const buyerAddress = facade.network.publicKeyToAddress(buyerKeyPair.publicKey);
 
-        // 1. メッセージの暗号化
-        // Symbol SDK v3 では MessageEncoder クラスを使用します
-        const encoderA = new MessageEncoder(userAKeyPair);
-        const messageToB = encoderA.encodeDeprecated(userBKeyPair.publicKey, new TextEncoder().encode('KEY_FOR_EBOOK_12345'));
-        
-        const encoderB = new MessageEncoder(userBKeyPair);
-        const messageToA = encoderB.encodeDeprecated(userAKeyPair.publicKey, new TextEncoder().encode('KEY_FOR_ILLUST_99999'));
-
-        // 2. インナートランザクションの作成
-        const txAtoB = facade.transactionFactory.createEmbedded({
+        // 1. 決済インナートランザクション (Buyer -> Seller)
+        const txPayment = facade.transactionFactory.createEmbedded({
             type: 'transfer_transaction_v1',
-            signerPublicKey: userAKeyPair.publicKey,
-            recipientAddress: userBAddress,
-            message: messageToB,
+            signerPublicKey: buyerKeyPair.publicKey,
+            recipientAddress: sellerAddress,
+            mosaics: [{ mosaicId: BigInt('0x' + CURRENCY_ID), amount: BigInt(product.price * 1000000) }]
+        });
+
+        // 2. メッセージ（ファイルURL等）の暗号化
+        const encoder = new MessageEncoder(sellerKeyPair);
+        const encryptedMessage = encoder.encodeDeprecated(buyerKeyPair.publicKey, new TextEncoder().encode(product.secret));
+
+        // 3. データ送付インナートランザクション (Seller -> Buyer)
+        const txData = facade.transactionFactory.createEmbedded({
+            type: 'transfer_transaction_v1',
+            signerPublicKey: sellerKeyPair.publicKey,
+            recipientAddress: buyerAddress,
+            message: encryptedMessage,
             mosaics: []
         });
 
-        const txBtoA = facade.transactionFactory.createEmbedded({
+        // 4. 運営(Operator)の手数料支払い証明用ダミートランザクション
+        // (V3アグリゲートでは、署名者がインナートランザクションに含まれる必要があります)
+        const txDummy = facade.transactionFactory.createEmbedded({
             type: 'transfer_transaction_v1',
-            signerPublicKey: userBKeyPair.publicKey,
-            recipientAddress: userAAddress,
-            message: messageToA,
-            mosaics: []
-        });
-
-        // 3. アグリゲートコンプリートトランザクションの構築
-        const merkleRoot = SymbolFacade.hashEmbeddedTransactions([txAtoB, txBtoA]);
-        const aggregateTx = facade.transactionFactory.create({
-            type: 'aggregate_complete_transaction_v3', // Symbolの最新ネットワーク仕様(v3)を使用
             signerPublicKey: operatorKeyPair.publicKey,
-            deadline: facade.network.fromDatetime(new Date()).addHours(2).timestamp, // 正しいDeadlineの計算
-            transactionsHash: merkleRoot,
-            transactions: [txAtoB, txBtoA],
-            fee: 1000000n, // 1.0 XYM
-            cosignatures: []
+            recipientAddress: facade.network.publicKeyToAddress(operatorKeyPair.publicKey),
+            message: new Uint8Array([0, ...new TextEncoder().encode("Fee payment")]),
+            mosaics: []
         });
 
-        // 4. 署名と連署の追加
-        // 4-1. 発行者（運営）が全体に署名し、トランザクションオブジェクトにセットする（重要）
+        const merkleRoot = SymbolFacade.hashEmbeddedTransactions([txPayment, txData, txDummy]);
+
+        // 5. アグリゲートコンプリートトランザクションの構築 (Operatorが手数料を払う)
+        const aggregateTx = facade.transactionFactory.create({
+            type: 'aggregate_complete_transaction_v3',
+            signerPublicKey: operatorKeyPair.publicKey,
+            deadline: facade.network.fromDatetime(new Date()).addHours(2).timestamp,
+            transactionsHash: merkleRoot,
+            transactions: [txPayment, txData, txDummy],
+            fee: 500000n
+        });
+
+        // 6. 署名と連署
         const sig = facade.signTransaction(operatorKeyPair, aggregateTx);
-        aggregateTx.signature = new aggregateTx.signature.constructor(sig.bytes);
+        facade.transactionFactory.constructor.attachSignature(aggregateTx, sig);
 
-        // 4-2. AとBの連署を生成...のはずですが、ネットワーク上の状態を解析した結果、
-        // Carol(ユーザーB)は既に「AliceとBobを管理者とするマルチシグアカウント」に設定されています。
-        // Symbolの仕様上、マルチシグ化されたアカウントは自身の秘密鍵で署名することができず（不適格）、
-        // 管理者であるAliceとBobの署名で代行する必要があります。
-        // Aliceは既に発行者として署名しており、Bobが連署することでCarolの署名条件(2/2)を満たします。
-        const cosigA = facade.cosignTransaction(userAKeyPair, aggregateTx);
-        // const cosigB = facade.cosignTransaction(userBKeyPair, aggregateTx); // ←Carol自身は署名できないため不要（エラーの原因）
+        const cosigBuyer = facade.cosignTransaction(buyerKeyPair, aggregateTx);
+        const cosigSeller = facade.cosignTransaction(sellerKeyPair, aggregateTx);
         
-        // aggregateTxオブジェクトに連署をセット
-        aggregateTx.cosignatures.push(cosigA); // Bobの連署のみを追加
+        cosigBuyer.version = 0n;
+        cosigSeller.version = 0n;
 
-        // 4-3. ペイロードを生成
-        const jsonPayload = facade.transactionFactory.constructor.attachSignature(aggregateTx, sig);
-        const finalTx = JSON.parse(jsonPayload);
+        const cosignatures = [cosigBuyer, cosigSeller].sort((a, b) => {
+            const aStr = a.signerPublicKey.toString();
+            const bStr = b.signerPublicKey.toString();
+            return aStr.localeCompare(bStr);
+        });
 
-        // 5. ネットワークへアナウンス (Node 18+ の標準fetchを使用)
+        aggregateTx.cosignatures.push(...cosignatures);
+
+        const hexPayload = Array.from(aggregateTx.serialize()).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+
         const response = await fetch(`${NODE_URL}/transactions`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(finalTx)
+            body: JSON.stringify({ payload: hexPayload })
         });
 
-        const responseData = await response.json();
-
         if (response.ok) {
-            // SDK v3 では facade.hashTransaction(tx) を使用してハッシュを計算します
-            const txHash = facade.hashTransaction(aggregateTx).toString();
-            res.json({ success: true, hash: txHash });
+            res.json({ success: true, hash: facade.hashTransaction(aggregateTx).toString() });
         } else {
-            res.json({ success: false, error: responseData });
+            const errorData = await response.text();
+            console.error("Node Error:", errorData);
+            res.json({ success: false, error: "トランザクション送信失敗", details: errorData });
         }
     } catch (error) {
         console.error(error);
@@ -106,6 +129,40 @@ app.post('/api/execute-swap', async (req, res) => {
     }
 });
 
+app.get('/api/products', (req, res) => {
+    try {
+        const data = JSON.parse(fs.readFileSync(DB_FILE));
+        res.json(data.products);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/products', upload.single('file'), (req, res) => {
+    try {
+        const { title, price, seller } = req.body;
+        const file = req.file;
+        if (!file) return res.status(400).json({ error: "ファイルがありません" });
+
+        const data = JSON.parse(fs.readFileSync(DB_FILE));
+        const newProduct = {
+            id: Date.now(),
+            title,
+            price: parseInt(price),
+            seller,
+            fileName: file.originalname,
+            secret: `URL: http://localhost:3000/uploads/${file.filename}`
+        };
+        data.products.push(newProduct);
+        fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+        res.json({ success: true, product: newProduct });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+
 app.listen(port, () => {
-    console.log(`サーバーが起動しました。ブラウザで http://localhost:${port} にアクセスしてください。`);
+    console.log(`サーバーが正常に起動しました: http://localhost:${port}`);
 });

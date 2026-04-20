@@ -91,10 +91,30 @@ async function executeSwap() {
     
     // 全ての署名を結合
     const finalTx = JSON.parse(jsonPayload);
-    finalTx.transaction.cosignatures = [cosigA, cosigB];
+    
+    // 連署データの作成
+    const cosignatures = [
+        {
+            version: cosigA.version.toString(),
+            signerPublicKey: cosigA.signerPublicKey.toString(),
+            signature: cosigA.signature.toString()
+        },
+        {
+            version: cosigB.version.toString(),
+            signerPublicKey: cosigB.signerPublicKey.toString(),
+            signature: cosigB.signature.toString()
+        }
+    ];
+
+    // 安全に cosignatures を追加
+    if (finalTx.transaction) {
+        finalTx.transaction.cosignatures = cosignatures;
+    } else {
+        finalTx.cosignatures = cosignatures;
+    }
 
     console.log('--- トランザクション構築完了 ---');
-    console.log('署名済みペイロード（一部）:', finalTx.signature);
+    console.log('署名済みペイロード（一部）:', finalTx.payload || finalTx.signature);
     
     // アナウンス処理（擬似コード：実際にはHTTP POSTでノードに送信）
     /*

@@ -3,71 +3,182 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Symbol 物々交換デモ</title>
+    <title>Symbol ファイルマーケット (Testnet)</title>
     <style>
-        body { font-family: sans-serif; background-color: #f4f4f9; color: #333; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .container { background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 500px; width: 100%; text-align: center; }
-        button { background-color: #6a00ff; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 5px; cursor: pointer; transition: background 0.3s; margin-top: 20px; width: 100%; }
-        button:hover { background-color: #5500cc; }
-        button:disabled { background-color: #ccc; cursor: not-allowed; }
-        #result { margin-top: 20px; padding: 15px; border-radius: 5px; display: none; text-align: left; word-break: break-all; }
-        .success { background-color: #e6ffed; border: 1px solid #b3ffcc; }
-        .error { background-color: #ffe6e6; border: 1px solid #ffb3b3; }
-        .roles { text-align: left; background: #f9f9f9; padding: 15px; border-radius: 5px; font-size: 14px; margin-bottom: 20px; }
+        body { font-family: sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1, h2 { color: #1a73e8; }
+        .product-list { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .product-item { border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #fff; }
+        .price { font-size: 20px; font-weight: bold; color: #e91e63; }
+        button { background-color: #1a73e8; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #1557b0; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; box-sizing: border-box; }
+        #log { margin-top: 20px; padding: 15px; background: #333; color: #fff; border-radius: 5px; font-family: monospace; white-space: pre-wrap; display: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>解凍鍵の同時交換</h2>
-        <p>電子書籍の鍵とイラストデータの鍵を、運営が手数料を肩代わりして同時に交換します。</p>
+        <h1>📑 Symbol ファイルマーケット</h1>
+        <p>ExcelなどのファイルをSymbolの決済と同時に安全に交換します。</p>
         
-        <div class="roles">
-            <strong>参加者情報:</strong><br>
-            ・運営 (Alice): 手数料支払い<br>
-            ・ユーザーA (Bob): 電子書籍の鍵を提供<br>
-            ・ユーザーB (Carol): イラストの鍵を提供
+        <div class="card">
+            <h2>ファイルを出品する</h2>
+            <div class="form-group">
+                <label>商品名</label>
+                <input type="text" id="pTitle" placeholder="例: 2024年度統計データ.xlsx">
+            </div>
+            <div class="form-group">
+                <label>価格 (XYM)</label>
+                <input type="number" id="pPrice" value="100">
+            </div>
+            <div class="form-group">
+                <label>出品者</label>
+                <select id="pSeller">
+                    <option value="B">B (ユーザーA)</option>
+                    <option value="C">C (ユーザーB)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>ファイルを選択</label>
+                <input type="file" id="pFile">
+            </div>
+            <button id="listBtn">ファイルをアップロードして出品</button>
         </div>
 
-        <button id="swapBtn">交換を実行する</button>
+        <div class="card">
+            <h2>販売中のファイル</h2>
+            <div id="productList" class="product-list"></div>
+        </div>
 
-        <div id="result"></div>
+        <div id="log"></div>
     </div>
 
     <script>
-        document.getElementById('swapBtn').addEventListener('click', async () => {
-            const btn = document.getElementById('swapBtn');
-            const resultDiv = document.getElementById('result');
+        const logDiv = document.getElementById('log');
+        function log(msg, isError = false) {
+            logDiv.style.display = 'block';
+            logDiv.innerHTML = `<span style="color: ${isError ? '#ff8a80' : '#b9f6ca'}">${msg}</span>\n` + logDiv.innerHTML;
+        }
+
+        async function checkStatus(hash, buyerName, p) {
+            let retryCount = 0;
+            const maxRetries = 20; // 約1分40秒待機
             
-            btn.disabled = true;
-            btn.innerText = '通信中...';
-            resultDiv.style.display = 'none';
-
-            try {
-                const response = await fetch('/api/execute-swap', { method: 'POST' });
-                const data = await response.json();
-
-                resultDiv.style.display = 'block';
-                if (data.success) {
-                    resultDiv.className = 'success';
-                    resultDiv.innerHTML = `
-                        <strong>✅ 送信成功！</strong><br><br>
-                        トランザクションハッシュ:<br>
-                        <a href="https://testnet.symbol.fyi/transactions/${data.hash}" target="_blank">${data.hash}</a><br><br>
-                        ※エクスプローラーに反映されるまで数秒〜数十秒かかります。
-                    `;
-                } else {
-                    resultDiv.className = 'error';
-                    resultDiv.innerHTML = `<strong>❌ エラーが発生しました:</strong><br><pre>${JSON.stringify(data.error, null, 2)}</pre>`;
+            const interval = setInterval(async () => {
+                retryCount++;
+                log(`承認確認中... (${retryCount}/${maxRetries})`);
+                
+                try {
+                    // 複数のノードで確認を試みる（冗長性のため）
+                    const res = await fetch(`https://sym-test-01.opening-line.jp:3001/transactionStatus/${hash}`);
+                    const data = await res.json();
+                    
+                    if (data.group === 'confirmed') {
+                        clearInterval(interval);
+                        log(`✨ 承認完了！ブロックチェーンに記録されました。`);
+                        log(`[送金状況] ${buyerName}さん -> ${p.seller}さん: ${p.price} XYM`);
+                        log(`[商品受取] 暗号化されたメッセージが届きました。`);
+                        return;
+                    } else if (data.group === 'failed') {
+                        clearInterval(interval);
+                        log(`❌ 却下されました: ${data.code}`, true);
+                        log(`(理由: 署名の不一致、または残高が不足している可能性があります)`, true);
+                        return;
+                    }
+                } catch (e) {
+                    // 通信エラーは一時的なものとして無視
                 }
-            } catch (error) {
-                resultDiv.style.display = 'block';
-                resultDiv.className = 'error';
-                resultDiv.innerHTML = `<strong>❌ 通信エラー:</strong><br>${error.message}`;
-            } finally {
-                btn.disabled = false;
-                btn.innerText = '交換を実行する';
+
+                if (retryCount >= maxRetries) {
+                    clearInterval(interval);
+                    log(`⚠️ タイムアウト: 承認が確認できませんでした。エクスプローラーで確認してください。`, true);
+                }
+            }, 5000);
+        }
+
+        async function buyProduct(p, buyerName) {
+            log(`--- 取引開始: ${p.title} ---`);
+            log(`購入者: ${buyerName}さん / 価格: ${p.price} XYM`);
+            
+            try {
+                log(`署名を作成してノードへ送信中...`);
+                const res = await fetch('/api/purchase', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ productId: p.id, buyerName })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    log(`🚀 アナウンス成功！ハッシュを受け取りました。`);
+                    log(`ハッシュ: <a href="https://testnet.symbol.fyi/transactions/${data.hash}" target="_blank" style="color:#fff">${data.hash}</a>`);
+                    log(`ブロックチェーンでの承認を待っています...`);
+                    checkStatus(data.hash, buyerName, p);
+                } else {
+                    log(`❌ 送信エラー: ${JSON.stringify(data.error)}`, true);
+                    if (data.error && data.error.code) {
+                        log(`エラーコード: ${data.error.code}`, true);
+                    }
+                }
+            } catch (e) {
+                log(`❌ 通信エラー: ${e.message}`, true);
+            }
+        }
+
+        async function loadProducts() {
+            const res = await fetch('/api/products');
+            const products = await res.json();
+            const list = document.getElementById('productList');
+            list.innerHTML = '';
+            
+            products.forEach(p => {
+                const item = document.createElement('div');
+                const buyerName = p.seller === 'B' ? 'C' : 'B';
+                item.className = 'product-item';
+                item.innerHTML = `
+                    <h3>${p.title}</h3>
+                    <p>ファイル: <code>${p.fileName}</code></p>
+                    <p class="price">${p.price} XYM</p>
+                    <p>出品者: ${p.seller}さん</p>
+                    <button id="buy-${p.id}">
+                        購入する (${buyerName}として)
+                    </button>
+                `;
+                list.appendChild(item);
+                document.getElementById(`buy-${p.id}`).onclick = () => buyProduct(p, buyerName);
+            });
+        }
+
+        document.getElementById('listBtn').addEventListener('click', async () => {
+            const title = document.getElementById('pTitle').value;
+            const price = document.getElementById('pPrice').value;
+            const seller = document.getElementById('pSeller').value;
+            const fileInput = document.getElementById('pFile');
+
+            if(!title || !fileInput.files[0]) return alert('入力が足りません');
+
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('price', price);
+            formData.append('seller', seller);
+            formData.append('file', fileInput.files[0]);
+
+            log("ファイルをアップロード中...");
+            const res = await fetch('/api/products', { method: 'POST', body: formData });
+
+            if(res.ok) {
+                log("✅ 出品完了！サーバーにファイルが保存されました。");
+                loadProducts();
+            } else {
+                log("❌ 出品失敗", true);
             }
         });
+
+        loadProducts();
     </script>
 </body>
 </html>

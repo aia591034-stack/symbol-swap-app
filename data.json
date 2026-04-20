@@ -1,0 +1,156 @@
+{
+  "products": [
+    {
+      "id": 1776535424184,
+      "title": "r",
+      "price": 100,
+      "seller": "B",
+      "fileName": "PartsMaster_backup_20260223_2039.xlsx",
+      "secret": "URL: http://localhost:3000/uploads/1df8c225250a50442d45d9d1b8f4f3cb (Original: PartsMaster_backup_20260223_2039.xlsx)"
+    },
+    {
+      "id": 1776536386429,
+      "title": "test",
+      "price": 10,
+      "seller": "B",
+      "fileName": "è£å©éè¨ºæ­çµæ_äºæ¥­è¨ç»æ¸ãã©ãã (3).pdf",
+      "secret": "URL: http://localhost:3000/uploads/f86871b511b033e7e8a44ba0dbc6c994 (Original: è£å©éè¨ºæ­çµæ_äºæ¥­è¨ç»æ¸ãã©ãã (3).pdf)"
+    },
+    {
+      "id": 1776538617544,
+      "title": "HHHH",
+      "price": 1,
+      "seller": "C",
+      "fileName": "ä¸è±ãµããå¨åº«ç®¡ç.xlsx",
+      "secret": "URL: http://localhost:3000/uploads/7a55e5312f39de546e226793cc3b6a2c (Original: ä¸è±ãµããå¨åº«ç®¡ç.xlsx)"
+    },
+    {
+      "id": 1776682822117,
+      "title": "wer",
+      "price": 10,
+      "seller": "B",
+      "fileName": "PartsMaster_backup_20260223_2039.xlsx",
+      "secret": "URL: http://localhost:3000/uploads/7070327cbfe678c68d015423e9f1aaed (Original: PartsMaster_backup_20260223_2039.xlsx)"
+    },
+    {
+      "id": 1776684086089,
+      "title": "2233",
+      "price": 10,
+      "seller": "B",
+      "fileName": "PartsMaster_backup_20260223_2039.xlsx",
+      "secret": "URL: http://localhost:3000/uploads/c1fb00f8ec3fbbe15bf16d67c5e2ea99 (Original: PartsMaster_backup_20260223_2039.xlsx)"
+    },
+    {
+      "id": 1776684295098,
+      "title": "自動検証テスト商品",
+      "price": 1,
+      "seller": "B",
+      "fileName": "test.txt",
+      "secret": "URL: http://localhost:3000/uploads/dummy"
+    },
+    {
+      "id": 1776684394186,
+      "title": "333",
+      "price": 1,
+      "seller": "B",
+      "fileName": "PartsMaster_backup_20260223_2039.xlsx",
+      "secret": "URL: http://localhost:3000/uploads/9aa4806a27a4b9c21af7cc95bd737ee1 (Original: PartsMaster_backup_20260223_2039.xlsx)"
+    },
+    {
+      "id": 1776684576070,
+      "title": "aaaaa",
+      "price": 1,
+      "seller": "B",
+      "fileName": "PartsMaster_backup_20260223_2038.xlsx",
+      "secret": "URL: http://localhost:3000/uploads/8a068a248d60cd8dddee90a111c31119 (Original: PartsMaster_backup_20260223_2038.xlsx)"
+    },
+    {
+      "id": 1776685011281,
+      "title": "ssss",
+      "price": 1,
+      "seller": "B",
+      "fileName": "PartsMaster_backup_20260223_2039.xlsx",
+      "secret": "URL: http://localhost:3000/uploads/71d2008f5572880cfd15a8a1c5e6e413 (Original: PartsMaster_backup_20260223_2039.xlsx)"
+    },
+    {
+      "id": 1776685265041,
+      "title": "33333",
+      "price": 1,
+      "seller": "B",
+      "fileName": "PartsMaster_backup_20260223_2037.xlsx",
+      "secret": "URL: http://localhost:3000/uploads/56a257b6f42d038518d7eea9780c9185 (Original: PartsMaster_backup_20260223_2037.xlsx)"
+    },
+    {
+      "id": 1776685468384,
+      "title": "ddd",
+      "price": 2,
+      "seller": "B",
+      "fileName": "PartsMaster_backup_20260223_2039.xlsx",
+      "secret": "URL: http://localhost:3000/uploads/adf873cd81240a2c2162a43776a9205f (Original: PartsMaster_backup_20260223_2039.xlsx)"
+    },
+    {
+      "id": 1776685584247,
+      "title": "qqq",
+      "price": 1,
+      "seller": "B",
+      "fileName": "PartsMaster_backup_20260223_2039.xlsx",
+      "secret": "URL: http://localhost:3000/uploads/535df87a75c13ef13ba1592ff6163778 (Original: PartsMaster_backup_20260223_2039.xlsx)"
+    },
+    {
+      "id": 1776685865924,
+      "title": "自動検証テスト商品",
+      "price": 1,
+      "seller": "B",
+      "fileName": "test.txt",
+      "secret": "URL: http://localhost:3000/uploads/dummy"
+    },
+    {
+      "id": 1776685917191,
+      "title": "自動検証テスト商品",
+      "price": 1,
+      "seller": "B",
+      "fileName": "test.txt",
+      "secret": "URL: http://localhost:3000/uploads/dummy"
+    },
+    {
+      "id": 1776685968750,
+      "title": "自動検証テスト商品",
+      "price": 1,
+      "seller": "B",
+      "fileName": "test.txt",
+      "secret": "URL: http://localhost:3000/uploads/dummy"
+    },
+    {
+      "id": 1776686018295,
+      "title": "自動検証テスト商品",
+      "price": 1,
+      "seller": "B",
+      "fileName": "test.txt",
+      "secret": "URL: http://localhost:3000/uploads/dummy"
+    },
+    {
+      "id": 1776686070325,
+      "title": "自動検証テスト商品",
+      "price": 1,
+      "seller": "B",
+      "fileName": "test.txt",
+      "secret": "URL: http://localhost:3000/uploads/dummy"
+    },
+    {
+      "id": 1776686143492,
+      "title": "自動検証テスト商品",
+      "price": 1,
+      "seller": "B",
+      "fileName": "test.txt",
+      "secret": "URL: http://localhost:3000/uploads/dummy"
+    },
+    {
+      "id": 1776691840685,
+      "title": "1",
+      "price": 3,
+      "seller": "B",
+      "fileName": "PartsMaster_backup_20260223_2039.xlsx",
+      "secret": "URL: http://localhost:3000/uploads/bfe31f9440a9a1bf3fcda3540aa1ee17"
+    }
+  ]
+}
